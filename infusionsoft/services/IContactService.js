@@ -1,4 +1,4 @@
-module.exports = IContactService = require('typedef')
+module.exports = IContactService = require('../../lib/typedef')
 
 // ContactService is used to manage contacts. You can add, update and find
 // contacts in addition to managing follow up sequences, tags and action sets.
