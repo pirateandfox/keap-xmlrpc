@@ -1,0 +1,29 @@
+{
+  "name": "infusionsoft-javascript-api",
+  "version": "0.3.2",
+  "description": "Deprecated compatibility alias for keap-xmlrpc",
+  "main": "index.js",
+  "scripts": {
+    "test": "node --test test.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pirateandfox/keap-xmlrpc.git"
+  },
+  "homepage": "https://github.com/pirateandfox/keap-xmlrpc#readme",
+  "bugs": {
+    "url": "https://github.com/pirateandfox/keap-xmlrpc/issues"
+  },
+  "keywords": [
+    "keap",
+    "infusionsoft",
+    "xml-rpc",
+    "xmlrpc",
+    "api"
+  ],
+  "author": "Justin Handley",
+  "license": "MIT",
+  "dependencies": {
+    "keap-xmlrpc": "^1.0.0"
+  }
+}

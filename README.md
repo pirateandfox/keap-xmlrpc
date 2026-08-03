@@ -1,219 +1,166 @@
-# Infusionsoft Javascript API
+# Keap XML-RPC for JavaScript
 
-## Looking for a new maintainer!!
+> **Legacy maintenance project.** This package only implements Keap's classic
+> Infusionsoft XML-RPC API. It does not contain a REST client, and it should not
+> be the starting point for a new Keap integration.
 
-:warning: **I will no longer be maintaining this API** - if anyone is interested please send me a message.  I'm more than happy to fully hand over the codebase and walk you through the history and known issues.  I am no longer using Infusionsoft and am not maintaining this as it should be maintained.
+For new work, use the [Keap REST API v2](https://developer.keap.com/docs/restv2/)
+and Keap's [official JavaScript or TypeScript SDK](https://github.com/infusionsoft/keap-sdk).
 
----
+## Why this project still exists
 
-A promise-driven, fluent-style Node.js wrapper for the XML-RPC [Infusionsoft API](https://developer.infusionsoft.com/docs/xml-rpc).
+This package is retained for existing integrations and for verified cases where
+the XML-RPC API exposes a classic capability or data shape that the REST API
+does not provide.
 
-Extended from Bvalosek's awesome but largely abandoned [Infusionsoft API](https://github.com/bvalosek/infusionsoft-api)
+Examples represented by this package that may still require XML-RPC include:
 
-Updated to work from the current Oauth token system, not the legacy App Id / Key pair.
+- arbitrary `DataService` access to classic Infusionsoft tables and fields that
+  are not modeled as REST resources;
+- older follow-up sequence and action-set controls, including retrieving the
+  next campaign step, pausing or resuming a sequence, rescheduling a step, and
+  running an action set;
+- classic saved-search and quick-search operations; and
+- selected legacy email-template, merge-field, invoice, payment, and shipping
+  operations without a direct one-for-one REST v2 equivalent.
 
-## Usage
+This is not a permanent or exhaustive list. Keap continues to add REST v2
+coverage, so check the current REST documentation before choosing XML-RPC.
 
-Install via `npm`:
+Contact relationships are a good example of that changing coverage. They were
+historically a reason to retain XML-RPC, but REST v2 now supports linking,
+unlinking, and listing linked contacts. New relationship code should therefore
+use REST v2.
 
+## Maintenance policy
+
+The goal of this repository is compatibility, not expansion:
+
+- security and runtime compatibility fixes are welcome;
+- fixes for existing XML-RPC behavior are welcome;
+- new REST endpoints will not be duplicated here; and
+- the generated service and table definitions date from January 2014 and may
+  not reflect every subsequent Keap schema change.
+
+Where REST offers an equivalent operation, prefer REST. A single application
+can use Keap's REST SDK for normal work and this package only for the remaining
+legacy calls.
+
+## Installation
+
+```sh
+npm install keap-xmlrpc
 ```
-$ npm install infusionsoft-javascript-api
+
+Existing projects using the former package name can move over without code
+changes:
+
+```sh
+npm uninstall infusionsoft-javascript-api
+npm install keap-xmlrpc
 ```
 
-Set it up by providing a valid Oauth token to instantiate DataContext:
+Then replace `require('infusionsoft-javascript-api')` with
+`require('keap-xmlrpc')`. Version `0.3.2` of the former package name is a
+compatibility alias, but it is deprecated and should only be used as a short
+migration bridge.
+
+## Authentication
+
+Create a `DataContext` with a Keap bearer token. Depending on the integration,
+this may be an OAuth access token, Personal Access Token, or Service Account
+Key. See Keap's current [authentication documentation](https://developer.keap.com/authentication/)
+and [PAT/SAK documentation](https://developer.keap.com/pat-and-sak/).
+
+Keep tokens out of source control and logs.
 
 ```javascript
-var api = require('infusionsoft-api');
+var keapXmlRpc = require('keap-xmlrpc')
 
-var infusionsoft = new api.DataContext('VALID_AUTH_TOKEN');
+var infusionsoft = new keapXmlRpc.DataContext(
+  process.env.KEAP_ACCESS_TOKEN
+)
 ```
 
-Then, work your Infusionsoft magic:
-```javascript 
+## Fluent table queries
+
+The generated table definitions expose field names and the `DataContext`
+exposes pluralized queryables:
+
+```javascript
+var keapXmlRpc = require('keap-xmlrpc')
+var Contact = keapXmlRpc.api.tables.Contact
+var infusionsoft = new keapXmlRpc.DataContext(
+  process.env.KEAP_ACCESS_TOKEN
+)
+
 infusionsoft.Contacts
-    .where(Contact.FirstName, 'Brandon')
-    .like(Contact.LastName, 'V%')
-    .select(Contact.Id, Contact.Email)
-    .orderByDescending('LastName')
-    .take(100)
-    .toArray()
-    .done(function(result) {
-        console.log(result);
-    });
+  .where(Contact.FirstName, 'Brandon')
+  .like(Contact.LastName, 'V%')
+  .select(Contact.Id, Contact.Email)
+  .orderByDescending(Contact.LastName)
+  .take(100)
+  .toArray()
+  .then(function (contacts) {
+    console.log(contacts)
+  })
+  .catch(function (error) {
+    console.error(error)
+  })
 ```
 
-You can also use API Services directly:
+Queries use the XML-RPC `DataService` and automatically fetch additional pages
+when necessary. Joins are performed locally, may load an entire inner table,
+and are not suitable for large datasets.
+
+## Direct XML-RPC services
+
+Generated services can also be called directly:
 
 ```javascript
-infusionsoft.ContactService
-    .findByEmail('brandon@aol.com', ['Id', 'FirstName', 'LastName']);
+infusionsoft.ContactService.findByEmail(
+  'person@example.com',
+  ['Id', 'FirstName', 'LastName', 'Email']
+).then(function (contacts) {
+  console.log(contacts)
+})
 ```
 
-Very cool.
+The package currently exposes these classic services:
 
-## Promises
+- `APIEmailService`
+- `AffiliateProgramService`
+- `APIAffiliateService`
+- `ContactService`
+- `DataService`
+- `DiscountService`
+- `FileService`
+- `FunnelService`
+- `InvoiceService`
+- `OrderService`
+- `ProductService`
+- `SearchService`
+- `ShippingService`
+- `WebFormService`
 
-All asynchronous methods return a [Promise](https://github.com/kriskowal/q)
-that represents the eventual value that will be returned.
+Consult Keap's [XML-RPC documentation](https://developer.keap.com/docs/xml-rpc/)
+for current server behavior. The presence of a generated method in this package
+does not guarantee that Keap still enables it for every product or account.
 
-Promises are glorious and make writing heavily asynchronous code much less
-awful than it would otherwise be.
+## Development
 
-See the **More Examples** section to see them in action.
+Install dependencies and run the compatibility tests:
 
-## More Examples
-
-All examples use `infusionsoft` as an instantiated DataContext with your Oauth Token. ie:
-
-```javascript
-var infusionsoft = new api.DataContext('MY_OAUTH_TOKEN');
+```sh
+yarn install
+yarn test
+yarn audit
 ```
-
-### Get monthly revenue from a particular month
-
-```javascript
-infusionsoft.Payments
-    .like(Payment.PayDate, '2013-06%')
-    .sum(function(x) { return x.PayAmt; })
-    .done(function(total) {
-        console.log('total revenue: ' + total);
-    });
-```
-
-### Login a user and get their info
-
-And an example of using the `fail` method to catch any problems.
-
-```javascript
-infusionsoft.DataService
-    .authenticateUser('user@email.com', 'md5-hash-of-password')
-    .then(function(userId) {
-        return infusionsoft.Users.where(User.Id, userId).first();
-    })
-    .then(function(user) {
-        console.log('Hello ' + user.FirstName + ' ' + user.LastName);
-    })
-    .fail(function(err) {
-        console.log('uh oh: ' + err);
-    });
-```
-
-### Get all invoices for a specific month, grouped by product
-
-Uses [underscore](http://underscorejs.org/).
-
-```javascript
-infusionsoft.Invoices
-    .like(Invoice.DateCreated, '2013-08%')
-    .groupBy(function(x) { return x.ProductSold; })
-    .done(function(result) {
-        _(result).each(function(invoices, productId) {
-            console.log(productId, invoices.length);
-        });
-    });
-```
-
-Same as above, but use the `spread` function to wait on 2 promises to get the
-corresponding product names. The API hits for querying both the `Product` table
-and the `Invoice` table will actually fire off at the same time.
-
-Hashtag asynchronous.
-
-```javascript
-var products = infusionsoft.Products.toArray();
-var invoices = infusionsoft.Invoices
-    .like(Invoice.DateCreated, '2013-08%')
-    .groupBy(function(x) { return x.ProductSold; });
-
-Q.spread([products, invoices], function(products, invoices) {
-   _(invoices).each(function(invoices, productId)  {
-        var productName = _(products)
-            .find(function(x) { return x.Id == productId; })
-            .ProductName;
-
-        console.log(productName, invoices.length);
-   });
-});
-```
-
-### From an email address, get a contact's tags
-
-```javascript
-sdk.Contacts
-    .where(Contact.Email, 'some@email.com')
-    .first()
-    .then(function(contact) {
-        return sdk.ContactGroupAssigns
-            .where(ContactGroupAssign.ContactId, contact.Id)
-            .toArray();
-    })
-    .then(function(cgas) {
-        cgas.forEach(function(group) {
-            console.log(group.ContactGroup, group.DateCreated);
-        });
-    });
-```
-
-### Get the full Product Category Name for all subscription plans
-
-Okay, take a deep breath. We can do (inner) joins. We fake it though... the
-`inner` part of the join has to be loaded entirely and then we do a `O(n^2)`
-iteration to make it, but we can still do it. If the `inner` is cheap, this
-isn't too bad. Especially when the SDK will handle loading, paging, waiting,
-etc... all for you.
-
-Syntax (stolen from C#'s LINQ):
-
-### `join` (`innerQueryable`, `outerKey`, `innerKey`, `selectorFn`)
-
-Let's do this:
-
-
-```javascript
-var pc    = infusionsoft.ProductCategories;
-var pca   = infusionsoft.ProductCategoryAssigns;
-var plans = infusionsoft.SubscriptionPlans;
-
-// Join the categories onto itself for creating the full category name
-// (category parent name + category name)
-var categories = pc
-    .join(pc, 'ParentId', 'Id', function(pc, parent) {
-        return {
-            Id: pc.Id,
-            Name: parent.CategoryDisplayName + ' ' + pc.CategoryDisplayName
-        }; });
-
-var subPlans = plans
-
-    // Join the sub plan (which only has product Id) onto the PCA table to get
-    // the product category ID
-    .join(pca, 'ProductId', 'ProductId', function(plan, pca) {
-        plan.ProductCategoryId = pca.ProductCategoryId;
-        return plan;
-    })
-
-
-    // Join our categories object we made above onto the projection from the
-    // most recent join to get the full category name + subscription plan Id
-    .join(categories, 'ProductCategoryId', 'Id', function(plan, category) {
-        return { planId: plan.Id, category: category.Name }; });
-
-subPlans.toArray().done(function(d) { console.log(d); });
-```
-
-What happens magically behind the scenes is pretty nice. When we call
-`toArray()` at the end, we first query the SubscriptionPlan table (aliased as
-`plans`). It then knows we need to join the `ProductCategoryAssign` table on
-there, so it fetches that (which may be more than one page). It finally gets
-the `ProductCategory` table (in its entirety), and joins them all up.
-
-The syntax looks nasty, but that is somewhat unavoidable with a `join`
-function.
-
 
 ## License
-Copyright (c) 2013, Brandon Valosek
+
+Copyright (c) 2013 Brandon Valosek
+
 Modified work Copyright 2018 Justin Handley
 
-**Infusionsoft Javascript API** is released under the MIT license.
-
+Released under the MIT license. See [LICENSE.txt](LICENSE.txt).
